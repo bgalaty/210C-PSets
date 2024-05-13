@@ -13,3 +13,12 @@ rho_m   = 0.99
 nu_set = [0.25,0.5,0.999,2,4]
 count = len(nu_set)
 
+# Set empty theta vector
+theta_vec = []
+
+# Calculate Corresponding Theta Values
+for i in range(count):
+    theta = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu_set[i])
+    theta_vec.append(theta)
+
+print(theta_vec)
