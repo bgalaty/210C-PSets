@@ -1,6 +1,7 @@
 # Packages needed for this Assignment
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy as sp
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
 
@@ -10,15 +11,71 @@ psi 	= 1
 chi		= 1
 beta 	= 0.99
 rho_m   = 0.99
-nu_set = [0.25,0.5,0.999,2,4]
-count = len(nu_set)
+nu_vec = [0.25,0.5,0.999,2,4]
+count = len(nu_vec)
+T = 100
 
 # Set empty theta vector
 theta_vec = []
 
 # Calculate Corresponding Theta Values
 for i in range(count):
-    theta = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu_set[i])
+    theta = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu_vec[i])
     theta_vec.append(theta)
 
-print(theta_vec)
+# print(theta_vec)
+
+for i in range(0):
+    ## Setup Basic Model
+    # Define sparse identity, above-diagonal sparse matrix, below-diagonal sparse matrix, and zero matrix
+    I = sp.sparse.eye(T)
+    Ip1 = sp.sparse.diags([np.ones(T-1)], [1], (T, T))
+    Im1 = sp.sparse.diags([np.ones(T-1)], [-1], (T, T))
+    Z = sp.sparse.csr_matrix((T, T))
+
+    ## Market Clearing 
+    # market clearing block: goods market clearing
+    Phigmc = I
+    Phigmy = -I
+    dHdY = sp.sparse.bmat([[Phigmc], [Phigmy]])
+    assert dHdY.shape == (2*T, T)
+
+    ## Firm Block
+    # firm block matrices: output
+    Phiyn = I
+
+    # firm block matrices: labor demand
+    Phiwpa = 0 * I
+    Phiwpn = 0 * I
+    dYFdU = sp.sparse.bmat([[Phiyn],[Phiwpn]])
+    dYFdZ = sp.sparse.bmat([[Phiwpa]])
+
+    assert dYFdU.shape == (2*T, T)
+    assert dYFdZ.shape == (T, T)
+
+    ## Consumer Block
+    # household block matrix: labor supply
+    Phica = 1/nu[i] * Phiwpa
+    Phicn = psi / nu[i] * I
+
+    # # household block matrix: capital accumulation equation
+    # Phiia = Z
+    # Phiik = (delta - 1) / delta * Im1 + 1 / delta * I
+    # Phiin = Z
+
+    # # combine household matrices in the following format:
+    # # [Phick Phicn]
+    # # [Phiik Phiin]
+    # dYHdU = sp.sparse.bmat([[Phick, Phicn],
+    #                     [Phiik, Phiin]])
+
+    # # combine household matrices in the following format:
+    # # [Phick Phicn]
+    # # [Phiik Phiin]
+    # dYHdZ = sp.sparse.bmat([[Phica],
+    #                     [Phiia]])
+
+    # assert dYHdU.shape == (2*T, 2*T)
+    # assert dYHdZ.shape == (2*T, T)
+
+
