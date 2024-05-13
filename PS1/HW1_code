@@ -4,3 +4,12 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
 
+# Set Variables
+gamma	= 1
+psi 	= 1
+chi		= 1
+beta 	= 0.99
+rho_m   = 0.99
+nu_set = [0.25,0.5,0.999,2,4]
+count = len(nu_set)
+
