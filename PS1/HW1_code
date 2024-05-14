@@ -10,7 +10,6 @@ gamma	= 1
 psi 	= 1
 chi		= 1
 beta 	= 0.99
-rho_m   = 0.99
 nu_vec = [0.25,0.5,0.999,2,4]
 count = len(nu_vec)
 T = 100
@@ -57,25 +56,55 @@ for i in range(0):
     # household block matrix: labor supply
     Phica = 1/nu[i] * Phiwpa
     Phicn = psi / nu[i] * I
+    Phicx = (nu[i] - gamma) / nu[i] * I
+    
 
-    # # household block matrix: capital accumulation equation
-    # Phiia = Z
-    # Phiik = (delta - 1) / delta * Im1 + 1 / delta * I
-    # Phiin = Z
+    # household block matrix: capital accumulation equation
+    Phiia = Z
+    Phiik = (delta - 1) / delta * Im1 + 1 / delta * I
+    Phiin = Z
 
-    # # combine household matrices in the following format:
-    # # [Phick Phicn]
-    # # [Phiik Phiin]
-    # dYHdU = sp.sparse.bmat([[Phick, Phicn],
-    #                     [Phiik, Phiin]])
+    # combine household matrices in the following format:
+    # [Phick Phicn]
+    # [Phiik Phiin]
+    dYHdU = sp.sparse.bmat([[Phick, Phicn],
+                        [Phiik, Phiin]])
 
-    # # combine household matrices in the following format:
-    # # [Phick Phicn]
-    # # [Phiik Phiin]
-    # dYHdZ = sp.sparse.bmat([[Phica],
-    #                     [Phiia]])
+    # combine household matrices in the following format:
+    # [Phick Phicn]
+    # [Phiik Phiin]
+    dYHdZ = sp.sparse.bmat([[Phica],
+                        [Phiia]])
 
-    # assert dYHdU.shape == (2*T, 2*T)
-    # assert dYHdZ.shape == (2*T, T)
+    assert dYHdU.shape == (2*T, 2*T)
+    assert dYHdZ.shape == (2*T, T)
 
 
+    ## Plotting IRFs
+    # plot IRFs to Money Supply shock with persistence rho
+    rho_m   = 0.99
+    m = np.zeros((T, 1))
+    m[0] = 1
+    for t in range(1, T):
+        m[t] = rho_m * m[t-1]
+
+    # compute impulse response functions
+    X = dXdZ @ m
+
+    # unpack X into its components k,n,c,y,wp,rk
+    c = X[0:T]
+    p = X[T:2*T]
+    mp = X[2*T:3*T]
+        
+    # plot impulse response functions
+    fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+    ax[0, 0].plot(m, label='m')
+    ax[0, 0].set_title('Money Supply')
+    ax[0, 1].plot(c, label='c')
+    ax[0, 1].set_title('Consumption')
+    ax[1, 1].plot(p, label='p')
+    ax[1, 1].set_title('Prices')
+    ax[1, 1].plot(mp, label='mp')
+    ax[1, 1].set_title('Nominal Interest Rate')
+
+    plt.savefig('IRFs.png')
