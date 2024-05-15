@@ -10,8 +10,8 @@ gamma	= 1
 psi 	= 1
 chi		= 1
 beta 	= 0.99
-nu_vec = [0.25,0.5,0.999,2,4]
-count = len(nu_vec)
+nu = [0.25,0.5,0.999,2,4]
+count = len(nu)
 T = 100
 
 # Set empty theta vector
@@ -19,12 +19,16 @@ theta_vec = []
 
 # Calculate Corresponding Theta Values
 for i in range(count):
-    theta = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu_vec[i])
+    theta = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu[i])
     theta_vec.append(theta)
 
-# print(theta_vec)
-
 for i in range(0):
+    ## Solve for steady state variables
+    Cstar = (1-theta[i]/chi * (1-theta[i]+theta[i]*(theta[i]/(1-theta[i])**((1-nu[i]/nu[i])))
+                                *(1-beta)**((nu[i]-1/nu[i])))**((nu[i]-gamma)/(1-nu[i])))**(1/(psi+gamma))
+    Mstar = ((1-beta)((1-theta[i])/theta[i]))**(-1/nu[i])*Cstar
+    Xstar = ((1-theta[i])*Cstar^(1-nu[i])+theta[i]*(Mstar)^(1-nu[i]))^(1/(1-nu[i]))
+
     ## Setup Basic Model
     # Define sparse identity, above-diagonal sparse matrix, below-diagonal sparse matrix, and zero matrix
     I = sp.sparse.eye(T)
@@ -34,77 +38,129 @@ for i in range(0):
 
     ## Market Clearing 
     # market clearing block: goods market clearing
-    Phigmc = I
     Phigmy = -I
-    dHdY = sp.sparse.bmat([[Phigmc], [Phigmy]])
-    assert dHdY.shape == (2*T, T)
+    Phigmp = Z
+    Phigmc = I
+    Phigmx = Z
+    Phigmwp = Z
+    Phigmq = Z
+
+    # market clearing block: money market clearing
+    Phimmy = Z
+    Phimmp = I
+    Phimmc = I
+    Phimmx = Z
+    Phimmwp = Z
+    Phimmq = -(1/nu[i])*beta/(beta-1)*I
+
+    # market clearing block: bond market clearing
+    Phibmy = Z
+    Phibmp = I-Ip1
+    Phibmc = nu[i]*I-nu[i]*Ip1
+    Phibmx = -(nu[i]-gamma)*I+(nu[i]-gamma)*Ip1
+    Phibmwp = Z
+    Phibmq = I
+    
+    dHdY = sp.sparse.bmat([[Phigmy, Phigmp, Phigmc, Phigmx, Phigmwp, Phigmq],
+                           [Phimmy, Phimmp, Phimmc, Phimmx, Phimmwp, Phimmq],
+                           [Phibmy, Phibmp, Phibmc, Phibmx, Phibmwp, Phibmq]])
+    assert dHdY.shape == (3*T, 6*T)
 
     ## Firm Block
     # firm block matrices: output
     Phiyn = I
+    Phiym = Z
 
     # firm block matrices: labor demand
-    Phiwpa = 0 * I
-    Phiwpn = 0 * I
-    dYFdU = sp.sparse.bmat([[Phiyn],[Phiwpn]])
-    dYFdZ = sp.sparse.bmat([[Phiwpa]])
+    Phiwpn = Z
+    Phiwpm = Z
 
-    assert dYFdU.shape == (2*T, T)
-    assert dYFdZ.shape == (T, T)
+    dYFdU = sp.sparse.bmat([[Phiyn],
+                            [Phiwpn]])
+    dYFdZ = sp.sparse.bmat([[Phiym],
+                            [Phiwpm]])
 
-    ## Consumer Block
+    assert dYFdU.shape == (2*T, 1*T)
+    assert dYFdZ.shape == (2*T, 1*T)
+
+    ## Household Block
     # household block matrix: labor supply
-    Phica = 1/nu[i] * Phiwpa
-    Phicn = psi / nu[i] * I
-    Phicx = (nu[i] - gamma) / nu[i] * I
+    Phicn = -psi / nu[i] * I
+    Phicm = Z
     
+    # household block matrix: x equation
+    Phixn = Z
+    Phixm = theta[i]*(Mstar/(Cstar))**(1-nu[i])*I
 
-    # household block matrix: capital accumulation equation
-    Phiia = Z
-    Phiik = (delta - 1) / delta * Im1 + 1 / delta * I
-    Phiin = Z
+    dYHdU = sp.sparse.bmat([[Phicn],
+                            [Phixn]])
 
-    # combine household matrices in the following format:
-    # [Phick Phicn]
-    # [Phiik Phiin]
-    dYHdU = sp.sparse.bmat([[Phick, Phicn],
-                        [Phiik, Phiin]])
+    dYHdZ = sp.sparse.bmat([[Phicm],
+                            [Phixm]])
 
-    # combine household matrices in the following format:
-    # [Phick Phicn]
-    # [Phiik Phiin]
-    dYHdZ = sp.sparse.bmat([[Phica],
-                        [Phiia]])
+    assert dYHdU.shape == (2*T, 1*T)
+    assert dYHdZ.shape == (2*T, 1*T)
 
-    assert dYHdU.shape == (2*T, 2*T)
-    assert dYHdZ.shape == (2*T, T)
+    # stack dYHdU on top of dYFdU to get dYdU
+    dYdU = sp.sparse.bmat([[dYHdU],
+                           [dYFdU]])
+    
+    # stack dYHdZ on top of dYFdZ to get dYdZ
+    dYdZ = sp.sparse.bmat([[dYHdZ],
+                           [dYFdZ]])
+    
+    assert dYdU.shape == (4*T, 1*T)
+    assert dYdZ.shape == (4*T, 1*T)
+
+    # compute dHdU using the chain rule dHdU = dHdY @ dYdU (@ is the python matrix multiplication operator)
+    dHdU = dHdY @ dYdU 
+
+    # compute dHdZ using the chain rule dHdZ = dHdY @ dYdZ (@ is the python matrix multiplication operator)
+    dHdZ = dHdY @ dYdZ
+
+    assert sp.sparse.issparse(dHdZ) == True
+    assert sp.sparse.issparse(dHdU) == True
+
+    assert dHdU.shape == (2*T, 2*T)
+    assert dHdZ.shape == (2*T, T)
+
+    # compute the Jacobian of the model
+    dUdZ = - sp.sparse.linalg.spsolve(dHdU, dHdZ)
+    dYdZ = dYdU @ dUdZ + dYdZ
+
+    dXdZ = sp.sparse.bmat([[dUdZ],
+                           [dYdZ]])
+    
+    assert dUdZ.shape == (2*T, T)
+    assert dYdZ.shape == (5*T, T)
+    assert dXdZ.shape == (7*T, T)
 
 
-    ## Plotting IRFs
-    # plot IRFs to Money Supply shock with persistence rho
-    rho_m   = 0.99
-    m = np.zeros((T, 1))
-    m[0] = 1
-    for t in range(1, T):
-        m[t] = rho_m * m[t-1]
+    # ## Plotting IRFs
+    # # plot IRFs to Money Supply shock with persistence rho
+    # rho_m   = 0.99
+    # m = np.zeros((T, 1))
+    # m[0] = 1
+    # for t in range(1, T):
+    #     m[t] = rho_m * m[t-1]
 
-    # compute impulse response functions
-    X = dXdZ @ m
+    # # compute impulse response functions
+    # X = dXdZ @ m
 
-    # unpack X into its components k,n,c,y,wp,rk
-    c = X[0:T]
-    p = X[T:2*T]
-    mp = X[2*T:3*T]
+    # # unpack X into its components k,n,c,y,wp,rk
+    # c = X[0:T]
+    # p = X[T:2*T]
+    # mp = X[2*T:3*T]
         
-    # plot impulse response functions
-    fig, ax = plt.subplots(2, 2, figsize=(12, 10))
-    ax[0, 0].plot(m, label='m')
-    ax[0, 0].set_title('Money Supply')
-    ax[0, 1].plot(c, label='c')
-    ax[0, 1].set_title('Consumption')
-    ax[1, 1].plot(p, label='p')
-    ax[1, 1].set_title('Prices')
-    ax[1, 1].plot(mp, label='mp')
-    ax[1, 1].set_title('Nominal Interest Rate')
+    # # plot impulse response functions
+    # fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+    # ax[0, 0].plot(m, label='m')
+    # ax[0, 0].set_title('Money Supply')
+    # ax[0, 1].plot(c, label='c')
+    # ax[0, 1].set_title('Consumption')
+    # ax[1, 1].plot(p, label='p')
+    # ax[1, 1].set_title('Prices')
+    # ax[1, 1].plot(mp, label='mp')
+    # ax[1, 1].set_title('Nominal Interest Rate')
 
-    plt.savefig('IRFs.png')
+    # plt.savefig('IRFs.png')
