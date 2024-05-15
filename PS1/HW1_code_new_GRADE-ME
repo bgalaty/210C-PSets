@@ -10,54 +10,51 @@ gamma	= 1
 psi 	= 1
 chi		= 1
 beta 	= 0.99
-nu_vec = [0.25,0.5,0.999,2,4]
+nu_vec = [0.25,0.5,0.9999,2,4]
 count = len(nu_vec)
-T = 100
+T = 500
 
 # Set empty theta vector
 theta_vec = []
 
-# Calculate Corresponding Theta Values
+# Calculate Corresponding Theta Values \\ Doing this arbitrarily since there's no data to calibrate with
 for i in range(count):
     theta_i = 0.5
-    # theta_i = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu[i])
+    # theta_i = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu_vec[i])
     theta_vec.append(theta_i)
 
 for i in range(count):
     nu = nu_vec[i]
     theta = theta_vec[i]
 
-    ## Solve for steady state variables
-    Cstar = (1-theta/chi * (1-theta+theta*(theta/(1-theta)**((1-nu)/nu))
+    ### Solve for steady state variables
+    Cstar = ((1-theta)/chi * (1-theta+theta*(theta/(1-theta))**((1-nu)/nu)
                                 *(1-beta)**((nu-1)/nu))**((nu-gamma)/(1-nu)))**(1/(psi+gamma))
     Mstar = ((1-beta)*((1-theta)/theta))**(-1/nu)*Cstar
-    Xstar = ((1-theta)*Cstar**(1-nu)+theta*(Mstar)**(1-nu))**(1/(1-nu))
+    Xstar = ((1-theta)*Cstar**(1-nu)+theta*(Mstar)**(1-nu))**(1/nu)
 
-    # define sparse identity, above-diagonal sparse matrix, below-diagonal sparse matrix, and zero matrix
+    ## Setup Basic Model
+    # Define sparse identity, above-diagonal sparse matrix, below-diagonal sparse matrix, and zero matrix
     I = sp.sparse.eye(T)
     Ip1 = sp.sparse.diags([np.ones(T-1)], [1], (T, T))
+    Im1 = sp.sparse.diags([np.ones(T-1)], [-1], (T, T))
     Z = sp.sparse.csr_matrix((T, T))
 
     #### Market Clearing Block
     # Goods Market
     Phigmy = -I
     Phigmc = I
-    Phigmmp = Z
     Phigmwp = Z
     Phigmq = Z
-    Phigmx = Z
-    Phigmx = Z
 
     # Money Market
     Phimmc = I
-    Phimmmp = -I
     Phimmq = (-1/nu)*(beta/(1-beta))*I
     Phimmy = Z
     Phimmwp = Z
-    Phimmx = Z
 
-    dHdY = sp.sparse.bmat([[Phigmy, Phigmc, Phigmwp, Phigmq],
-                           [Phimmy, Phimmc, Phimmwp, Phimmq]])
+    dHdY = sp.sparse.bmat([[Phigmy, Phigmwp, Phigmc, Phigmq],
+                           [Phimmy, Phimmwp, Phimmc, Phimmq]])
 
     assert dHdY.shape == (2*T, 4*T)
 
@@ -97,24 +94,32 @@ for i in range(count):
     assert dYHdZ.shape == (1*T, 1*T)
 
     ### Bonds Block
-    Phiqm = nu*Ip1*Phicm - (nu-gamma)*Ip1*Phixm
-    Phiqn = nu * Ip1 * Phicm - (nu - gamma) * Ip1 * Phixn
-    Phiqp = -Ip1 * nu *  Ip1 * Phicp - (nu - gamma) * Ip1 * Phixp 
+    # Phiqm = nu*(I-Ip1)*Phicm - (nu-gamma)*(I-Ip1)*Phixm
+    # Phiqn = nu*(I-Ip1)*Phicn - (nu - gamma)*(I-Ip1) *Phixn
+    # Phiqp = -(I-Ip1) + nu*(I-Ip1)*Phicp - (nu - gamma)*(I-Ip1)*Phixp 
+
+    # Phiqm = nu*Phicm*(I-Ip1) - (nu-gamma)*Phicm*(I-Ip1)
+    # Phiqn = nu*Phixn*(I-Ip1) - (nu - gamma)*Phixn*(I-Ip1)
+    # Phiqp = -(I-Ip1) + nu*Phicp*(I-Ip1) - (nu - gamma)*Phicp*(I-Ip1)
+
+    Phiqm = - (nu-gamma)*Phixm + (nu-gamma)*Ip1
+    Phiqn = - (nu - gamma)*Phixn + (nu - gamma)*Ip1
+    Phiqp = - (I-Ip1) - (nu - gamma)*Phixp + (nu - gamma)*Ip1
 
     dYBdU = sp.sparse.bmat([[Phiqn, Phiqp]])
     dYBdZ = sp.sparse.bmat([[Phiqm]])
     assert dYBdU.shape == (1*T, 2*T)
     assert dYBdZ.shape == (1*T, 1*T)
 
-    # stack dYHdU on top of dYFdU to get dYdU
-    dYdU = sp.sparse.bmat([[dYHdU],
-                        [dYFdU],
-                        [dYBdU]])
+    # stack to get dYdU
+    dYdU = sp.sparse.bmat([[dYFdU],
+                           [dYHdU],
+                           [dYBdU]])
         
-    # stack dYHdZ on top of dYFdZ to get dYdZ
-    dYdZ = sp.sparse.bmat([[dYHdZ],
-                        [dYFdZ],
-                        [dYBdZ]])
+    # stack to get dYdZ
+    dYdZ = sp.sparse.bmat([[dYFdZ],
+                           [dYHdZ],
+                           [dYBdZ]])
         
     assert dYdU.shape == (4*T, 2*T)
     assert dYdZ.shape == (4*T, 1*T)
@@ -136,7 +141,7 @@ for i in range(count):
     dYdZ = dYdU @ dUdZ + dYdZ
 
     dXdZ = sp.sparse.bmat([[dUdZ],
-                        [dYdZ]])
+                           [dYdZ]])
         
     assert dUdZ.shape == (2*T, T)
     assert dYdZ.shape == (4*T, T)
@@ -148,18 +153,22 @@ for i in range(count):
     m = np.zeros((T, 1))
     m[0] = 1
     for t in range(1, T):
-            m[t] = rho_m * m[t-1]
+        m[t] = rho_m * m[t-1]
 
     # compute impulse response functions
     X = dXdZ @ m
 
-    # unpack X into its components k,n,c,y,wp,rk
-    c = X[0:T]
+    # unpack X into its components y, wp, c, q
+    n = X[0:T]
     p = X[T:2*T]
-    q = X[2*T:3*T]
+    y = X[2*T:3*T]
+    wp = X[3*T:4*T]
+    c = X[4*T:5*T]
+    q = X[5*T:6*T]
 
     # plot impulse response functions
     fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+    
     ax[0, 0].plot(m, label='m')
     ax[0, 0].set_title('Money Supply')
     ax[0, 1].plot(c, label='c')
@@ -168,5 +177,6 @@ for i in range(count):
     ax[1, 0].set_title('Prices')
     ax[1, 1].plot(q, label='q')
     ax[1, 1].set_title('Nominal Interest Rate')
+    plt.figtext(0.5, 0.95, f"Nu is {nu}", wrap=True, horizontalalignment='center', fontsize=12)
 
     plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS1/IRFs_{i}.png')
