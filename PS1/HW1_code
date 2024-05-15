@@ -19,7 +19,8 @@ theta = []
 
 # Calculate Corresponding Theta Values
 for i in range(count):
-    theta_i = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu[i])
+    theta_i = 0.05
+    # theta_i = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu[i])
     theta.append(theta_i)
 
 for i in range(count):
@@ -70,7 +71,8 @@ for i in range(count):
     #                        [Phimmy, Phimmc, Phimmx, Phimmwp, Phimmq],])
     # assert dHdY.shape == (2*T, 5*T)
 
-    dHdY = sp.sparse.bmat([[Phigmy, Phigmc, Phigmx, Phigmwp, Phigmq],])
+    # dHdY = sp.sparse.bmat([[Phigmy, Phigmc, Phigmx, Phigmwp, Phigmq],])
+    dHdY = sp.sparse.bmat([[Phimmy, Phimmc, Phimmx, Phimmwp, Phimmq],])
     assert dHdY.shape == (1*T, 5*T)
 
     ## Firm Block
@@ -163,7 +165,7 @@ for i in range(count):
     # unpack X into its components k,n,c,y,wp,rk
     c = X[0:T]
     p = X[T:2*T]
-    x = X[2*T:3*T]
+    q = X[2*T:3*T]
         
     # plot impulse response functions
     fig, ax = plt.subplots(2, 2, figsize=(12, 10))
@@ -171,9 +173,9 @@ for i in range(count):
     ax[0, 0].set_title('Money Supply')
     ax[0, 1].plot(c, label='c')
     ax[0, 1].set_title('Consumption')
-    ax[1, 1].plot(p, label='p')
-    ax[1, 1].set_title('Prices')
-    ax[1, 1].plot(x, label='x')
+    ax[1, 0].plot(p, label='p')
+    ax[1, 0].set_title('Prices')
+    ax[1, 1].plot(q, label='q')
     ax[1, 1].set_title('Nominal Interest Rate')
 
     plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS1/IRFs_{i}.png')
