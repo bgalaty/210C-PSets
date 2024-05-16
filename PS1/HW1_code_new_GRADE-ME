@@ -10,7 +10,7 @@ gamma	= 1
 psi 	= 1
 chi		= 1
 beta 	= 0.99
-nu_vec = [0.25,0.5,0.9999,2,4]
+nu_vec = [0.25,0.5,1.00001,2,4]
 count = len(nu_vec)
 T = 500
 
@@ -19,8 +19,7 @@ theta_vec = []
 
 # Calculate Corresponding Theta Values \\ Doing this arbitrarily since there's no data to calibrate with
 for i in range(count):
-    theta_i = 0.5
-    # theta_i = (1 - beta) / ( (1 - beta) + ( (-(1 - beta) + np.sqrt(beta**2 - 2*beta + 5))/2 )**nu_vec[i])
+    theta_i = 0.05
     theta_vec.append(theta_i)
 
 for i in range(count):
@@ -43,86 +42,92 @@ for i in range(count):
     #### Market Clearing Block
     # Goods Market
     Phigmy = -I
-    Phigmc = I
     Phigmwp = Z
+    Phigmc = I
+    Phigmx = Z
     Phigmq = Z
 
     # Money Market
-    Phimmc = I
-    Phimmq = (-1/nu)*(beta/(1-beta))*I
     Phimmy = Z
     Phimmwp = Z
+    Phimmc = I
+    Phimmx = Z
+    Phimmq = -(1/nu)*(beta/(1-beta))*I
 
-    dHdY = sp.sparse.bmat([[Phigmy, Phigmwp, Phigmc, Phigmq],
-                           [Phimmy, Phimmwp, Phimmc, Phimmq]])
+    dHdY = sp.sparse.bmat([[Phigmy, Phigmwp, Phigmc, Phigmx, Phigmq],
+                        [Phimmy, Phimmwp, Phimmc, Phimmx, Phimmq]])
 
-    assert dHdY.shape == (2*T, 4*T)
 
-    #### Firms block
-    # Output function
+    assert dHdY.shape == (2*T, 5*T)
+
+    #### Firm block
+    #Production
     Phiyn = I
-    Phiym = Z
     Phiyp = Z
+    Phiym = Z
 
-    # Zero profit condition
+    #Labor demand
     Phiwpn = Z
-    Phiwpm = Z
     Phiwpp = Z
+    Phiwpm = Z
 
-    dYFdU = sp.sparse.bmat([[Phiyn, Phiyp], 
-                            [Phiwpn, Phiwpp]])
-    dYFdZ = sp.sparse.bmat([[Phiym],
-                            [Phiwpm]])
-    assert dYFdU.shape == (2*T, 2*T)
-    assert dYFdZ.shape == (2*T, 1*T)
+    dFYdU = sp.sparse.bmat([[Phiyn, Phiyp],
+                        [Phiwpn, Phiwpp]])
+    dFYdZ = sp.sparse.bmat([[Phiym],
+                        [Phiwpm]])
 
-    ### Household Block
-    A = ((nu-gamma)*(1-theta)*(Cstar/Xstar)**(1-nu)-nu)**(-1) # Constant
-    Phicm = -(1/A)*(theta*(Mstar)**(1-nu)*(nu-gamma))*I - (1/A)*Phiwpm
-    Phicn = (1/A)*psi*I - (1/A)*Phiwpn
-    Phicp = (1/A)*(theta*(Mstar)**(1-nu)*(nu-gamma))*I - (1/A)*Phiwpp
+    assert dFYdU.shape == (2*T, 2*T)
+    assert dFYdZ.shape == (2*T, 1*T)
 
-    # Add the extra phi for the variable X
-    Phixm = (1-theta)*(Cstar/Xstar)*Phicm
-    Phixn = (1-theta)*(Cstar/Xstar)*Phicn
-    Phixp = (1-theta)*(Cstar/Xstar)*Phicp
+    #### Household Block
+    A = (nu - (nu - gamma)*(1-theta)*(Cstar/Xstar)**(1-nu))**(-1)
 
+    # Consumption
+    Phicn = A*Phiwpn - A*psi*I
+    Phicp = A*(Phiwpp - (nu-gamma)*theta*(Mstar/(Xstar))**(1-nu)*I)
+    Phicm = A*(nu-gamma)*theta*(Mstar/(Xstar))**(1-nu)*I
 
-    dYHdU = sp.sparse.bmat([[Phicn, Phicp]])
-    dYHdZ = sp.sparse.bmat([[Phicm]])
-    assert dYHdU.shape == (1*T, 2*T)
-    assert dYHdZ.shape == (1*T, 1*T)
+    dCYdU = sp.sparse.bmat([[Phicn, Phicp]])
+    dCYdZ = sp.sparse.bmat([[Phicm]])
+
+    assert dCYdU.shape == (1*T, 2*T)
+    assert dCYdZ.shape == (1*T, 1*T)
+
+    # X
+    Phixn = (1-theta)*(Cstar/Xstar)**(1-nu)*Phicn 
+    Phixp = (1-theta)*(Cstar/Xstar)**(1-nu)*Phicp + theta*(Mstar/(Xstar))**(1-nu)*I 
+    Phixm = (1-theta)*(Cstar/Xstar)**(1-nu)*Phicm + theta*(Mstar/(Xstar))**(1-nu)*I
+
+    dXYdU = sp.sparse.bmat([[Phixn, Phixp]])
+    dXYdZ = sp.sparse.bmat([[Phixm]])
+
+    assert dXYdU.shape == (1*T, 2*T)
+    assert dXYdZ.shape == (1*T, 1*T)
 
     ### Bonds Block
-    # Phiqm = nu*(I-Ip1)*Phicm - (nu-gamma)*(I-Ip1)*Phixm
-    # Phiqn = nu*(I-Ip1)*Phicn - (nu - gamma)*(I-Ip1) *Phixn
-    # Phiqp = -(I-Ip1) + nu*(I-Ip1)*Phicp - (nu - gamma)*(I-Ip1)*Phixp 
+    Phiqn = -nu*(Phicn*I - Phicn*Ip1) + (nu-gamma)*(Phixn*I - Phixn*Ip1)
+    Phiqp = -nu*Phicp*(I - Ip1) - (I - Ip1) + (nu - gamma)*(Phixp*I - Phixp*Ip1)
+    Phiqm = -nu*(Phicm*I - Phicm*Ip1) + (nu-gamma)*(Phixm*I - Phixm*Ip1)
 
-    # Phiqm = nu*Phicm*(I-Ip1) - (nu-gamma)*Phicm*(I-Ip1)
-    # Phiqn = nu*Phixn*(I-Ip1) - (nu - gamma)*Phixn*(I-Ip1)
-    # Phiqp = -(I-Ip1) + nu*Phicp*(I-Ip1) - (nu - gamma)*Phicp*(I-Ip1)
-
-    Phiqm = - (nu-gamma)*Phixm + (nu-gamma)*Ip1
-    Phiqn = - (nu - gamma)*Phixn + (nu - gamma)*Ip1
-    Phiqp = - (I-Ip1) - (nu - gamma)*Phixp + (nu - gamma)*Ip1
-
-    dYBdU = sp.sparse.bmat([[Phiqn, Phiqp]])
-    dYBdZ = sp.sparse.bmat([[Phiqm]])
-    assert dYBdU.shape == (1*T, 2*T)
-    assert dYBdZ.shape == (1*T, 1*T)
+    dBYdU = sp.sparse.bmat([[Phiqn, Phiqp]])
+    dBYdZ = sp.sparse.bmat([[Phiqm]])
+    assert dBYdU.shape == (1*T, 2*T)
+    assert dBYdZ.shape == (1*T, 1*T)
 
     # stack to get dYdU
-    dYdU = sp.sparse.bmat([[dYFdU],
-                           [dYHdU],
-                           [dYBdU]])
-        
+    dYdU = sp.sparse.bmat([[dFYdU],
+                        [dCYdU],
+                        [dXYdU],
+                        [dBYdU]])
+
     # stack to get dYdZ
-    dYdZ = sp.sparse.bmat([[dYFdZ],
-                           [dYHdZ],
-                           [dYBdZ]])
-        
-    assert dYdU.shape == (4*T, 2*T)
-    assert dYdZ.shape == (4*T, 1*T)
+    dYdZ = sp.sparse.bmat([[dFYdZ],
+                        [dCYdZ],
+                        [dXYdZ],
+                        [dBYdZ]])
+
+    assert dYdU.shape == (5*T, 2*T)
+    assert dYdZ.shape == (5*T, 1*T)
 
     # compute dHdU using the chain rule dHdU = dHdY @ dYdU (@ is the python matrix multiplication operator)
     dHdU = dHdY @ dYdU 
@@ -144,8 +149,8 @@ for i in range(count):
                            [dYdZ]])
         
     assert dUdZ.shape == (2*T, T)
-    assert dYdZ.shape == (4*T, T)
-    assert dXdZ.shape == (6*T, T)
+    assert dYdZ.shape == (5*T, T)
+    assert dXdZ.shape == (7*T, T)
 
     ## Plotting IRFs
     # plot IRFs to Money Supply shock with persistence rho
@@ -164,11 +169,12 @@ for i in range(count):
     y = X[2*T:3*T]
     wp = X[3*T:4*T]
     c = X[4*T:5*T]
-    q = X[5*T:6*T]
+    x = X[5*T:6*T]
+    q = X[6*T:7*T]
 
     # plot impulse response functions
     fig, ax = plt.subplots(2, 2, figsize=(12, 10))
-    
+
     ax[0, 0].plot(m, label='m')
     ax[0, 0].set_title('Money Supply')
     ax[0, 1].plot(c, label='c')
