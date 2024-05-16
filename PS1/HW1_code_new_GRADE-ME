@@ -22,6 +22,8 @@ for i in range(count):
     theta_i = 0.05
     theta_vec.append(theta_i)
 
+fig, mx = plt.subplots(2, 2, figsize=(12, 10))
+
 for i in range(count):
     nu = nu_vec[i]
     theta = theta_vec[i]
@@ -43,6 +45,7 @@ for i in range(count):
     # Goods Market
     Phigmy = -I
     Phigmwp = Z
+    Phigmmp = Z
     Phigmc = I
     Phigmx = Z
     Phigmq = Z
@@ -50,15 +53,16 @@ for i in range(count):
     # Money Market
     Phimmy = Z
     Phimmwp = Z
+    Phimmmp = -I
     Phimmc = I
     Phimmx = Z
     Phimmq = -(1/nu)*(beta/(1-beta))*I
 
-    dHdY = sp.sparse.bmat([[Phigmy, Phigmwp, Phigmc, Phigmx, Phigmq],
-                        [Phimmy, Phimmwp, Phimmc, Phimmx, Phimmq]])
+    dHdY = sp.sparse.bmat([[Phigmy, Phigmwp, Phigmmp, Phigmc, Phigmx, Phigmq],
+                        [Phimmy, Phimmwp, Phimmmp, Phimmc, Phimmx, Phimmq]])
 
 
-    assert dHdY.shape == (2*T, 5*T)
+    assert dHdY.shape == (2*T, 6*T)
 
     #### Firm block
     #Production
@@ -71,13 +75,20 @@ for i in range(count):
     Phiwpp = Z
     Phiwpm = Z
 
-    dFYdU = sp.sparse.bmat([[Phiyn, Phiyp],
-                        [Phiwpn, Phiwpp]])
-    dFYdZ = sp.sparse.bmat([[Phiym],
-                        [Phiwpm]])
+    #MP Identity
+    Phimpn = Z
+    Phimpp = -I
+    Phimpm = I
 
-    assert dFYdU.shape == (2*T, 2*T)
-    assert dFYdZ.shape == (2*T, 1*T)
+    dFYdU = sp.sparse.bmat([[Phiyn, Phiyp],
+                            [Phiwpn, Phiwpp],
+                            [Phimpn, Phimpp]])
+    dFYdZ = sp.sparse.bmat([[Phiym],
+                        [Phiwpm],
+                        [Phimpm]])
+
+    assert dFYdU.shape == (3*T, 2*T)
+    assert dFYdZ.shape == (3*T, 1*T)
 
     #### Household Block
     A = (nu - (nu - gamma)*(1-theta)*(Cstar/Xstar)**(1-nu))**(-1)
@@ -126,11 +137,11 @@ for i in range(count):
                         [dXYdZ],
                         [dBYdZ]])
 
-    assert dYdU.shape == (5*T, 2*T)
-    assert dYdZ.shape == (5*T, 1*T)
+    assert dYdU.shape == (6*T, 2*T)
+    assert dYdZ.shape == (6*T, 1*T)
 
     # compute dHdU using the chain rule dHdU = dHdY @ dYdU (@ is the python matrix multiplication operator)
-    dHdU = dHdY @ dYdU 
+    dHdU = dHdY @ dYdU
 
     # compute dHdZ using the chain rule dHdZ = dHdY @ dYdZ (@ is the python matrix multiplication operator)
     dHdZ = dHdY @ dYdZ
@@ -149,8 +160,8 @@ for i in range(count):
                            [dYdZ]])
         
     assert dUdZ.shape == (2*T, T)
-    assert dYdZ.shape == (5*T, T)
-    assert dXdZ.shape == (7*T, T)
+    assert dYdZ.shape == (6*T, T)
+    assert dXdZ.shape == (8*T, T)
 
     ## Plotting IRFs
     # plot IRFs to Money Supply shock with persistence rho
@@ -168,21 +179,23 @@ for i in range(count):
     p = X[T:2*T]
     y = X[2*T:3*T]
     wp = X[3*T:4*T]
-    c = X[4*T:5*T]
-    x = X[5*T:6*T]
-    q = X[6*T:7*T]
+    mp = X[4*T:5*T]
+    c = X[5*T:6*T]
+    x = X[6*T:7*T]
+    q = X[7*T:8*T]
 
     # plot impulse response functions
-    fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+    # fig, mx = plt.subplots(2, 2, figsize=(12, 10))
 
-    ax[0, 0].plot(m, label='m')
-    ax[0, 0].set_title('Money Supply')
-    ax[0, 1].plot(c, label='c')
-    ax[0, 1].set_title('Consumption')
-    ax[1, 0].plot(p, label='p')
-    ax[1, 0].set_title('Prices')
-    ax[1, 1].plot(q, label='q')
-    ax[1, 1].set_title('Nominal Interest Rate')
-    plt.figtext(0.5, 0.95, f"Nu is {nu}", wrap=True, horizontalalignment='center', fontsize=12)
-
+    mx[0, 0].plot(m, label='m')
+    mx[0, 0].set_title('Money Supply')
+    mx[0, 1].plot(c, label='c')
+    mx[0, 1].set_title('Consumption')
+    mx[1, 0].plot(p, label='p')
+    mx[1, 0].set_title('Prices')
+    mx[1, 1].plot(q, label='q')
+    mx[1, 1].set_title('Nominal Interest Rate')
+    # plt.figtext(0.5, 0.95, f"Nu is {nu}", wrap=True, horizontalalignment='center', fontsize=12)
     plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS1/IRFs_{i}.png')
+
+plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS1/IRFs.png')
