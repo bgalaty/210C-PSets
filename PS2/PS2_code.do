@@ -7,7 +7,7 @@ ECON 210C: Homework 2
 Preamble
 **************************************************************/{
 clear
-// cd "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/"
+cd "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/"
 local datain "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/PS2-Johannes/data"
 local results "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2"
 
@@ -15,7 +15,7 @@ local results "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFold
 // ssc install GRSTYLE, replace
 // ssc install freduse, replace
 // ssc install palettes, replace
-// ssc install colrspace
+// ssc install colrspacex
 
 * Import data method
 global withfreduse = 0
@@ -148,35 +148,34 @@ gen dateq = qofd(daten)
 collapse (mean) `tsvar' (max) recession (last) date daten, by(dateq)
 tsset dateq, quarterly
 keep if (yofd(daten) >= 1960) & (yofd(daten) <= 2007)
-var `ImpulseVars', lags(1/4)
+
+var INFL UNRATE FEDFUNDS, lags(1/4)
 	irf set var_results, replace
 	irf create var_result, step(20) set(var_results) replace
-	capture irf graph irf, impulse(`ImpulseVars') response(`ImpulseVars') byopts(yrescale) ///
+	irf graph irf, impulse(INFL UNRATE FEDFUNDS) response(INFL UNRATE FEDFUNDS) byopts(yrescale) /// INFL 
 		yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) ///
 		name(var_results)
-	graph export `results'/1_b.pdf, replace
+
+graph export `results'/1_b.pdf, replace
 	
 /// I don't know how to get this to go in the right order... I've tried rearranging to no avail
+/// and the ChatGPT suggestions just made it worse
 }
 
 /**************************************************************
 Question 1.d
 **************************************************************/{
-// /* Manual Choleshy Decomp */
-// matrix A = (1,0,0 \ .,1,0 \ .,.,1)
-// matrix B = (.,0,0 \ 0,.,0 \ 0,0,.)
-// svar `ImpulseVars', lags(1/4) aeq(A) beq(B)
-// irf create mysirf, set(mysirfs) step(20) replace
-// irf graph sirf, impulse(`ImpulseVars') response(`ImpulseVars') ///
-// 		yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) ///
-// 		name(svar_results_manual)
+/* Manual Choleshy Decomp */
+	matrix A = (1,0,0 \ .,1,0 \ .,.,1)
+	matrix B = (.,0,0 \ 0,.,0 \ 0,0,.)
+	svar INFL UNRATE FEDFUNDS, lags(1/4) aeq(A) beq(B)
+	irf create mysirf, set(mysirfs) step(20) replace
+	irf graph sirf, impulse(INFL UNRATE FEDFUNDS) response(INFL UNRATE FEDFUNDS) ///
+			yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) ///
+			name(svar_results_manual)
 
-var `ImpulseVars', lags(1/4)
-irf create myirf, set(myirfs) step(20) replace
-capture irf graph oirf, impulse(`ImpulseVars') response(`ImpulseVars') ///
-		yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) ///
-		name(svar_results_oirf)
-	graph export `results'/1_d.pdf, replace
+
+// graph export `results'/1_d.pdf, replace
 }
 
 /**************************************************************
@@ -196,8 +195,8 @@ capture twoway /// (area recession daten, vertical color("${fgcolor}") base(`min
 	ytitle("Residuals", c("${fgcolor}")) ///
 	name(shock_time_series, replace) ///
 // 	legend(on order(1 "Estimated Monetary Shock") 
-	graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/1_f.pdf", replace
-// 	graph export `results'/1_f.pdf, replace
+// 	graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/1_f.pdf", replace
+	graph export `results'/1_f.pdf, replace
 }
 
 
@@ -223,22 +222,28 @@ tsset dateq
 
 var INFL UNRATE FEDFUNDS, lags(1/8) exog(L(0/12).resid_full)
 irf create myrirf, step(20) replace
-irf graph dm, impulse(resid_full) ///
-		yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) ///
-		name(rr_var, replace)
-// graph export `results'/2_b.pdf, replace
-graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/2_b.pdf", replace
+irf graph dm, impulse(resid_full) irf(myrirf) yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) name(rr_var, replace)
+graph export `results'/2_b.pdf, replace
+// graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/2_b.pdf", replace
 }
 
-// response(`ImpulseVars') 
+/**************************************************************
+Question 2.c
+*************************************************************/{
+tsset dateq
 
-var INFL UNRATE FEDFUNDS, lags(1/8) exog(L(0/12).resid_full)
-irf create myrirf, step(20) replace
-irf graph dm, impulse(resid_full) irf(myrirf) byopts(title(VAR with 8 Lags and RR Shocks) yrescale) /// INFL UNRATE 
-yline(0,  lcolor(black) lp(dash) lw(*2)) legend(col(2) order(1 "95% CI" 2 "IRF") symx(*.5) size(vsmall))  ///
-name(var_results, replace )
+/* Manual Choleshy Decomp */
+	matrix A = (1,0,0,0 \ .,1,0,0 \ .,.,1,0 \ .,.,0,1)
+	matrix B = (.,0,0,0 \ 0,.,0,0 \ 0,0,.,0 \ 0,0,0,.)
+	svar resid_full INFL UNRATE FEDFUNDS, lags(1/4) aeq(A) beq(B)
+	irf create myrsirf, set(myrsirf) step(20) replace
+	irf graph sirf, impulse(resid_full INFL UNRATE FEDFUNDS) response(resid_full INFL UNRATE FEDFUNDS) ///
+			yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) ///
+			name(romer_svar_results_manual, replace)
 
-
+graph export `results'/2_c.pdf, replace
+// graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/2_c.pdf", replace
+}
 
 
 
