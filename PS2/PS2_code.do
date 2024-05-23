@@ -143,7 +143,6 @@ capture twoway (area recession daten, color("${fgcolor}") base(`min')) ///
 /**************************************************************
 Question 1.b
 **************************************************************/{
-local ImpulseVars "FEDFUNDS UNRATE INFL"
 gen dateq = qofd(daten)
 collapse (mean) `tsvar' (max) recession (last) date daten, by(dateq)
 tsset dateq, quarterly
@@ -157,9 +156,6 @@ var INFL UNRATE FEDFUNDS, lags(1/4)
 		name(var_results)
 
 graph export `results'/1_b.pdf, replace
-	
-/// I don't know how to get this to go in the right order... I've tried rearranging to no avail
-/// and the ChatGPT suggestions just made it worse
 }
 
 /**************************************************************
@@ -194,8 +190,6 @@ capture twoway /// (area recession daten, vertical color("${fgcolor}") base(`min
 	caption("Source: FRED." "Note: Shaded regions denote recessions.", c("${fgcolor}")) ///
 	ytitle("Residuals", c("${fgcolor}")) ///
 	name(shock_time_series, replace) ///
-// 	legend(on order(1 "Estimated Monetary Shock") 
-// 	graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/1_f.pdf", replace
 	graph export `results'/1_f.pdf, replace
 }
 
@@ -224,7 +218,6 @@ var INFL UNRATE FEDFUNDS, lags(1/8) exog(L(0/12).resid_full)
 irf create myrirf, step(20) replace
 irf graph dm, impulse(resid_full) irf(myrirf) yline(0, lstyle(foreground) lcolor("${fgcolor}") lp(dash)) name(rr_var, replace)
 graph export `results'/2_b.pdf, replace
-// graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/2_b.pdf", replace
 }
 
 /**************************************************************
@@ -242,7 +235,6 @@ tsset dateq
 			name(romer_svar_results_manual, replace)
 
 graph export `results'/2_c.pdf, replace
-// graph export "/Users/bridgetgalaty/Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS2/2_c.pdf", replace
 }
 
 
