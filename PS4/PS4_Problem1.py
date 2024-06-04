@@ -1,5 +1,4 @@
 # Load in Packages
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -73,4 +72,4 @@ one_b[3, 1].plot(n, label='n')
 one_b[3, 1].set_title('Employment')
 
 
-plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/IRFs.png')
+plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/1b_IRFs.png')
