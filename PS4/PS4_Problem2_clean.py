@@ -15,9 +15,8 @@ phi_pi = 1.5
 phi_y = 0 
 mu = 1/(epsilon-1)
 theta_ = [0.0001, 0.25, 0.5, 0.75, 0.9999]
-lambda_ = []
 
-theta = theta_[0]
+theta = theta_[1]
 
 @simple
 def hh(c, n, varphi, gamma, beta, chi):
@@ -85,20 +84,52 @@ G = nk.solve_jacobian(ss, unknowns, targets, inputs, T=300)
 
 print(G)
 
-T, Tplot, impact, rho_a, news = 300, 20, 0.01, 0.5, 10
-dv = np.empty((T, 1))
-dv[:, 0] = impact * rho_a**np.arange(T)
+calibration_copies = {}
+# change calibration
+for i in range(1,len(theta_)):
+    calibration_i = calibration.copy()
+    calibration_i['theta'] = theta_[i]
 
-# plot responses for shock, nominal interest rate, real interest rate, inflation, output, and employment
-plotset = ['a','v','r','sdf','c', 'y', 'pi']
-fig, ax = plt.subplots(2, 3, figsize=(15, 10))
+    # calculate new steady state
+    ss_i = nk.solve_steady_state(calibration_i, unknowns_ss, targets_ss, solver="broyden_custom")
+
+    # calculate new Jacobian
+    G_i = nk.solve_jacobian(ss_i, unknowns, targets, inputs, T=300)
+
+    calibration_copies[f'G_{i}'] = G_i
+
+T, Tplot, impact, rho_a = 300, 20, 0.01, rho_a
+da = np.empty((T, 1))
+da[:, 0] = impact * rho_a**np.arange(T)
+
+# plot responses
+plotset = ['a','c','y','n','pi','q','r']
+fig, ax = plt.subplots(3, 3, figsize=(15, 10))
 for i, var in enumerate(plotset):
-    if var == 'v':
-        irf1 = dv[:Tplot]
+    if var == 'a':
+        irf1 = da[:Tplot]
+        irf2 = da[:Tplot]
+        irf3 = da[:Tplot]
+        irf4 = da[:Tplot]
+        irf5 = da[:Tplot]
+    elif var == 'r':
+        irf1 = 100 * (G[var]['a'] @ da)[1:Tplot]
+        irf2 = 100 * (calibration_copies['G_1'][var]['a'] @ da)[1:Tplot]
+        irf3 = 100 * (calibration_copies['G_2'][var]['a'] @ da)[1:Tplot]
+        irf4 = 100 * (calibration_copies['G_3'][var]['a'] @ da)[1:Tplot]
+        irf5 = 100 * (calibration_copies['G_4'][var]['a'] @ da)[1:Tplot]
     else:
-        irf1 = 100 * (G[var]['v'] @ dv)[:Tplot]
+        irf1 = 100 * (G[var]['a'] @ da)[:Tplot]
+        irf2 = 100 * (calibration_copies['G_1'][var]['a'] @ da)[:Tplot]
+        irf3 = 100 * (calibration_copies['G_2'][var]['a'] @ da)[:Tplot]
+        irf4 = 100 * (calibration_copies['G_3'][var]['a'] @ da)[:Tplot]
+        irf5 = 100 * (calibration_copies['G_4'][var]['a'] @ da)[:Tplot]
     axi = ax[i // 3, i % 3]
     axi.plot(irf1, label=f"theta={theta_[0]}")
+    axi.plot(irf2, label=f"theta={theta_[1]}")
+    axi.plot(irf3, label=f"theta={theta_[2]}")
+    axi.plot(irf4, label=f"theta={theta_[3]}")
+    axi.plot(irf5, label=f"theta={theta_[4]}")
     axi.set_title(f"{var}")
     axi.xlabel = "quarters"
     axi.ylabel = "% deviation"
