@@ -20,7 +20,7 @@ eta_i = phi_pi*eta_pi
 # Solve for IRF
 a_t1 = a0
 i_t1 = 0
-a = []
+a = [a0]
 y = []
 pi = []
 yflex = []
