@@ -72,7 +72,7 @@ def firm2(f1, f2):
 
 @simple
 def central_bank(pi, v, phi_pi, beta):
-    q = (1 / beta) * (pi ** phi_pi) * np.exp(float(v))
+    q = (1 / beta) * (pi ** phi_pi) * np.exp(v)
     return q
 
 @simple
