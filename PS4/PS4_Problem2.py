@@ -54,11 +54,12 @@ def hh(c, n, varphi, gamma, beta, chi):
 #     pstar = f1/f2
 #     return pstar
 
-@solved(unknowns={'f1': 1.0, 'f2': 1.0}, targets=['F1', 'F2'], solver="broyden_custom")
+@solved(unknowns={'f1': (1-mu)*chi/(1-theta*beta), 'f2': 1/(1-theta*beta)}, targets=['F1', 'F2'], solver="broyden_custom")
 def firm(sdf, wp, a, pi, n, mu, theta, epsilon, f1, f2):    
+    y = a*n
     F1 = (1 + mu) * (a * n) * (wp / a) + theta * (pi(+1) ** epsilon) * sdf(+1) * f1(+1) - f1
     F2 = (a * n) + theta * (pi(+1) ** (epsilon - 1)) * sdf(+1) * f2(+1) - f2
-    return F1, F2
+    return F1, F2, y
 
 @simple
 def firm2(f1, f2):
@@ -97,7 +98,7 @@ print(f"Blocks: {nk.blocks}")
 # targets_ss = { "fisher": 0, "output": 0, "inflation": 0}
 
 # steady state values
-calibration = {'v': 0.0, 'a': 1.0, 'y': 1.0, 'r': 1.0, 'sdf': 1.0, 'wp': chi, 'q': 1.0 / beta, 'gamma': gamma, 'beta': beta, 'phi_pi': phi_pi, 'kappa': kappa, 'theta': theta, 'varphi': varphi, 'chi': chi, 'mu': mu, 'epsilon': epsilon}
+calibration = {'v': 0.0, 'a': 1.0, 'y': 1.0, 'r': 1.0/beta, 'sdf': beta, 'wp': chi, 'q': 1.0 / beta, 'gamma': gamma, 'beta': beta, 'phi_pi': phi_pi, 'kappa': kappa, 'theta': theta, 'varphi': varphi, 'chi': chi, 'mu': mu, 'epsilon': epsilon}
 
 # solve for steady state (we know it, but running this routine helps us check for mistakes)
 unknowns_ss = {'n': 0.9, 'c': 1.0, 'pi': 1.0}

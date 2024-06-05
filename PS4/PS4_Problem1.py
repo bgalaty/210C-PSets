@@ -152,9 +152,5 @@ for i, var in enumerate(plotset):
     ax[3, 0].set_title('Real Returns')
     ax[3, 1].set_title('Employment')
     axi.plot(irf1, label="kappa=0.1")
-    # axi.set_title(f"{var}")
-    # axi.xlabel = "quarters"
-    # axi.ylabel = "% deviation"
-    # axi.legend()
 
 plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/1d_IRFs.png')
