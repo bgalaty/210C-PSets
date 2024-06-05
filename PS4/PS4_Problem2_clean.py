@@ -16,14 +16,7 @@ phi_y = 0
 mu = 1/(epsilon-1)
 theta_ = [0.0001, 0.25, 0.5, 0.75, 0.9999]
 lambda_ = []
-kappa_ = []
 
-for i in range(len(theta_)):
-    lambda_i = (1-theta_[i])*(1-beta*theta_[i])/theta_[i]
-    lambda_.append(lambda_i)
-    kappa_i = lambda_i*(gamma+varphi)
-    kappa_.append(kappa_i)
-kappa = kappa_[0]
 theta = theta_[0]
 
 @simple
@@ -47,7 +40,7 @@ def firm2(f1, f2):
 
 @simple
 def central_bank(pi, v, phi_pi, beta):
-    q = (1 / beta) * (pi ** phi_pi) * np.exp(v)
+    q = (1 / beta) * (pi ** phi_pi) * v
     return q
 
 @simple
@@ -63,7 +56,7 @@ print(nk)
 print(f"Blocks: {nk.blocks}")
 
 # steady state values
-calibration = {'v': 0.0, 'a': 1.0, 'y': 1.0, 'r': 1.0/beta, 'sdf': beta, 'wp': chi, 'q': 1.0 / beta, 'gamma': gamma, 'beta': beta, 'phi_pi': phi_pi, 'kappa': kappa, 'theta': theta, 'varphi': varphi, 'chi': chi, 'mu': mu, 'epsilon': epsilon}
+calibration = {'v': 1.0, 'a': 1.0, 'y': 1.0, 'r': 1.0/beta, 'sdf': beta, 'wp': chi, 'q': 1.0 / beta, 'gamma': gamma, 'beta': beta, 'phi_pi': phi_pi, 'theta': theta, 'varphi': varphi, 'chi': chi, 'mu': mu, 'epsilon': epsilon}
 
 # solve for steady state (we know it, but running this routine helps us check for mistakes)
 unknowns_ss = {'n': 1.0, 'c': 1.0, 'pi': 1.0}
@@ -91,3 +84,24 @@ inputs = ['a', 'v']
 G = nk.solve_jacobian(ss, unknowns, targets, inputs, T=300)
 
 print(G)
+
+T, Tplot, impact, rho_a, news = 300, 20, 0.01, 0.5, 10
+dv = np.empty((T, 1))
+dv[:, 0] = impact * rho_a**np.arange(T)
+
+# plot responses for shock, nominal interest rate, real interest rate, inflation, output, and employment
+plotset = ['a','v','r','sdf','c', 'y', 'pi']
+fig, ax = plt.subplots(2, 3, figsize=(15, 10))
+for i, var in enumerate(plotset):
+    if var == 'v':
+        irf1 = dv[:Tplot]
+    else:
+        irf1 = 100 * (G[var]['v'] @ dv)[:Tplot]
+    axi = ax[i // 3, i % 3]
+    axi.plot(irf1, label=f"theta={theta_[0]}")
+    axi.set_title(f"{var}")
+    axi.xlabel = "quarters"
+    axi.ylabel = "% deviation"
+    axi.legend()
+
+plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/2g_IRFs.png')
