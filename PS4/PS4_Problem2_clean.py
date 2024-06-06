@@ -16,7 +16,7 @@ phi_y = 0
 mu = 1/(epsilon-1)
 theta_ = [0.0001, 0.25, 0.5, 0.75, 0.9999]
 
-theta = theta_[1]
+theta = theta_[0]
 
 @simple
 def hh(c, n, varphi, gamma, beta, chi):
@@ -25,12 +25,14 @@ def hh(c, n, varphi, gamma, beta, chi):
     r = 1/(beta*(c**(-gamma))/(c(-1)**(-gamma)))
     return wp, sdf, r
 
-@solved(unknowns={'f1': (1-mu)*chi/(1-theta*beta), 'f2': 1/(1-theta*beta)}, targets=['F1', 'F2'], solver="broyden_custom")
+@solved(unknowns={'f1': (1+mu)*chi/(1-theta*beta), 'f2': 1/(1-theta*beta)}, targets=['F1', 'F2'], solver="broyden_custom")
 def firm(sdf, wp, a, pi, n, mu, theta, epsilon, f1, f2):    
     y = a*n
+    yflex = a**((1+varphi)/(gamma+varphi))
+    gap = y-yflex
     F1 = (1 + mu) * (a * n) * (wp / a) + theta * (pi(+1) ** epsilon) * sdf(+1) * f1(+1) - f1
     F2 = (a * n) + theta * (pi(+1) ** (epsilon - 1)) * sdf(+1) * f2(+1) - f2
-    return F1, F2, y
+    return F1, F2, y, gap, yflex
 
 @simple
 def firm2(f1, f2):
@@ -103,8 +105,8 @@ da = np.empty((T, 1))
 da[:, 0] = impact * rho_a**np.arange(T)
 
 # plot responses
-plotset = ['a','c','y','n','pi','q','r']
-fig, ax = plt.subplots(3, 3, figsize=(15, 10))
+plotset = ['a','c', 'gap', 'y','n','pi','q','r']
+fig, ax = plt.subplots(4, 2, figsize=(12, 20))
 for i, var in enumerate(plotset):
     if var == 'a':
         irf1 = da[:Tplot]
@@ -124,7 +126,7 @@ for i, var in enumerate(plotset):
         irf3 = 100 * (calibration_copies['G_2'][var]['a'] @ da)[:Tplot]
         irf4 = 100 * (calibration_copies['G_3'][var]['a'] @ da)[:Tplot]
         irf5 = 100 * (calibration_copies['G_4'][var]['a'] @ da)[:Tplot]
-    axi = ax[i // 3, i % 3]
+    axi = ax[i // 2, i % 2]
     axi.plot(irf1, label=f"theta={theta_[0]}")
     axi.plot(irf2, label=f"theta={theta_[1]}")
     axi.plot(irf3, label=f"theta={theta_[2]}")
