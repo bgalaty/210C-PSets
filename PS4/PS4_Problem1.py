@@ -72,7 +72,8 @@ one_b[3, 1].plot(n, label='n')
 one_b[3, 1].set_title('Employment')
 
 
-plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/1b_IRFs.png')
+# plt.savefig('Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/1b_IRFs.png')
+plt.savefig('1b_IRFs.png')
 
 ## Problem 1 - Part d
 
@@ -153,4 +154,5 @@ for i, var in enumerate(plotset):
     ax[3, 1].set_title('Employment')
     axi.plot(irf1, label="kappa=0.1")
 
-plt.savefig(f'Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/1d_IRFs.png')
+# plt.savefig('Documents/*School/PhD/FirstYear/210C/GitFolder/Homework/PS4/1d_IRFs.png')
+plt.savefig('1d_IRFs.png')
